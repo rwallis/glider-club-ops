@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchFieldWeather, type FieldWeather } from '../services/openMeteo'
+import { fetchFieldWeather, type FieldWeather } from '../services/fieldWeather'
 
 const REFRESH_MS = 10 * 60 * 1000
 

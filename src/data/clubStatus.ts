@@ -91,7 +91,7 @@ export const clubSnapshot: ClubSnapshot = {
       id: 'weather',
       title: 'Weather',
       icon: '🌤️',
-      summary: 'Open-Meteo · FLF Gliderport',
+      summary: 'METAR · nearest station to TX23',
       status: 'caution',
       items: [
         { id: 'wx-wind', name: 'Wind', status: 'caution', detail: 'Loading…' },

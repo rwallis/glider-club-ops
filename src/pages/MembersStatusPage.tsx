@@ -36,7 +36,7 @@ function mergeWeatherCategory(
     if (weather.loading) {
       return {
         ...category,
-        summary: 'Loading Open-Meteo forecast…',
+        summary: 'Loading METAR from nearest station…',
         status: 'caution',
         statusLabel: 'Loading',
         items: category.items.map((item) => ({
@@ -53,7 +53,7 @@ function mergeWeatherCategory(
         summary: 'Forecast unavailable',
         status: 'caution',
         statusLabel: 'Offline',
-        notes: weather.error ?? 'Could not reach Open-Meteo. Check connection and retry.',
+        notes: weather.error ?? 'Could not reach Aviation Weather. Check connection and retry.',
       }
     }
 
