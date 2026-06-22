@@ -6,6 +6,8 @@ export interface StatusItem {
   status: StatusLevel
   detail?: string
   updatedAt?: string
+  /** Operations checklist — checked means confirmed done */
+  checked?: boolean
 }
 
 export interface CategoryCard {
@@ -16,7 +18,6 @@ export interface CategoryCard {
   status: StatusLevel
   items: StatusItem[]
   notes?: string
-  /** Shown on the status pill instead of equipment labels (e.g. Flyable) */
   statusLabel?: string
 }
 
@@ -26,4 +27,17 @@ export interface ClubSnapshot {
   lastUpdated: string
   flyingDay: boolean
   categories: CategoryCard[]
+}
+
+export type SignupFlightStatus = 'queued' | 'flying' | 'completed' | 'cancelled'
+
+export interface SignupFlight {
+  id: string
+  pilotName: string
+  glider: string
+  instructor: string
+  startTime: string | null
+  endTime: string | null
+  status: SignupFlightStatus
+  createdAt: string
 }
