@@ -34,6 +34,9 @@ export function MembersLayout() {
               <NavLink to="/members/signup" className={navClass}>
                 Glider signup
               </NavLink>
+              <NavLink to="/members/tasks" className={navClass}>
+                Work items
+              </NavLink>
             </nav>
 
             <button

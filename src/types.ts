@@ -46,3 +46,17 @@ export interface SignupFlight {
   checkedInAt: string | null
   createdAt: string
 }
+
+export type FieldTaskStatus = 'pending' | 'assigned' | 'complete'
+
+export interface FieldTask {
+  id: string
+  categoryId: string
+  title: string
+  notes?: string
+  status: FieldTaskStatus
+  assignedMember: string | null
+  completedBy: string | null
+  createdAt: string
+  updatedAt: string
+}
