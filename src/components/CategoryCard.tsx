@@ -27,7 +27,7 @@ export function CategoryCard({ category }: CategoryCardProps) {
             <p className="mt-0.5 text-sm text-slate-300">{category.summary}</p>
           </div>
         </div>
-        <StatusBadge status={category.status} compact />
+        <StatusBadge status={category.status} label={category.statusLabel} compact />
       </header>
 
       <ul className="flex flex-1 flex-col gap-2">

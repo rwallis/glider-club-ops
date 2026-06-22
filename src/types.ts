@@ -16,6 +16,8 @@ export interface CategoryCard {
   status: StatusLevel
   items: StatusItem[]
   notes?: string
+  /** Shown on the status pill instead of equipment labels (e.g. Flyable) */
+  statusLabel?: string
 }
 
 export interface ClubSnapshot {

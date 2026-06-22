@@ -16,16 +16,13 @@ interface OpenMeteoCurrent {
 
 interface OpenMeteoResponse {
   current: OpenMeteoCurrent
-  current_units: {
-    wind_speed_10m: string
-    temperature_2m: string
-  }
 }
 
 export interface FieldWeather {
   fetchedAt: string
   summary: string
   status: StatusLevel
+  statusLabel: string
   items: CategoryCard['items']
   notes?: string
 }
@@ -54,6 +51,9 @@ const WMO_LABELS: Record<number, string> = {
   99: 'Thunderstorm with hail',
 }
 
+const NO_FLY_CODES = [95, 96, 99, 65, 75, 82]
+const MARGINAL_WEATHER_CODES = [45, 48, 55, 63, 61, 80, 81]
+
 function windLabel(degrees: number): string {
   const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
   return dirs[Math.round(degrees / 22.5) % 16]
@@ -63,7 +63,6 @@ function metersToSm(meters: number): number {
   return meters / 1609.344
 }
 
-/** Approximate density altitude (ft) from field elevation, °F, and pressure (hPa). */
 function densityAltitudeFt(elevationFt: number, tempF: number, pressureHpa: number): number {
   const tempC = ((tempF - 32) * 5) / 9
   const pressureAltitude = elevationFt + (1013.25 - pressureHpa) * 30
@@ -71,46 +70,56 @@ function densityAltitudeFt(elevationFt: number, tempF: number, pressureHpa: numb
   return Math.round(pressureAltitude + 120 * (tempC - isaTempC))
 }
 
-function itemStatus(
-  kind: 'wind' | 'vis' | 'cloud' | 'temp',
-  current: OpenMeteoCurrent,
-): StatusLevel {
-  const visSm = metersToSm(current.visibility)
-  const gusts = current.wind_gusts_10m
-
-  if ([95, 96, 99, 65, 75, 82].includes(current.weather_code)) return 'unavailable'
-  if ([45, 48, 55, 63].includes(current.weather_code)) return 'caution'
-
-  switch (kind) {
-    case 'wind':
-      if (gusts >= 20 || current.wind_speed_10m >= 15) return 'caution'
-      return 'operational'
-    case 'vis':
-      if (visSm < 3) return 'unavailable'
-      if (visSm < 5) return 'caution'
-      return 'operational'
-    case 'cloud':
-      if (current.cloud_cover >= 90) return 'caution'
-      if (current.cloud_cover >= 70) return 'caution'
-      return 'operational'
-    case 'temp': {
-      const da = densityAltitudeFt(fieldLocation.elevationFt, current.temperature_2m, current.surface_pressure)
-      if (da >= 6000) return 'caution'
-      return 'operational'
-    }
-  }
+function windItemStatus(current: OpenMeteoCurrent): StatusLevel {
+  if (current.wind_gusts_10m >= 25 || current.wind_speed_10m >= 20) return 'caution'
+  if (current.wind_gusts_10m >= 20 || current.wind_speed_10m >= 15) return 'caution'
+  return 'operational'
 }
 
-function overallStatus(current: OpenMeteoCurrent): StatusLevel {
-  const statuses = [
-    itemStatus('wind', current),
-    itemStatus('vis', current),
-    itemStatus('cloud', current),
-    itemStatus('temp', current),
-  ]
-  if (statuses.includes('unavailable')) return 'unavailable'
-  if (statuses.includes('caution')) return 'caution'
+function visibilityItemStatus(current: OpenMeteoCurrent): StatusLevel {
+  const visSm = metersToSm(current.visibility)
+  if (visSm < 3) return 'caution'
+  if (visSm < 5) return 'caution'
   return 'operational'
+}
+
+function cloudItemStatus(current: OpenMeteoCurrent): StatusLevel {
+  if (NO_FLY_CODES.includes(current.weather_code)) return 'caution'
+  if (MARGINAL_WEATHER_CODES.includes(current.weather_code)) return 'caution'
+  if (current.cloud_cover >= 90) return 'caution'
+  if (current.cloud_cover >= 70) return 'caution'
+  return 'operational'
+}
+
+function tempItemStatus(current: OpenMeteoCurrent): StatusLevel {
+  const da = densityAltitudeFt(fieldLocation.elevationFt, current.temperature_2m, current.surface_pressure)
+  if (da >= 6000) return 'caution'
+  return 'operational'
+}
+
+/** Flyability for the card pill — never use equipment-style "Unavailable" when data loaded. */
+function flyability(current: OpenMeteoCurrent): { status: StatusLevel; label: string } {
+  if (NO_FLY_CODES.includes(current.weather_code)) {
+    return { status: 'caution', label: 'No fly' }
+  }
+
+  const visSm = metersToSm(current.visibility)
+  const checks = [
+    windItemStatus(current),
+    visibilityItemStatus(current),
+    cloudItemStatus(current),
+    tempItemStatus(current),
+  ]
+
+  if (visSm < 3 || current.wind_gusts_10m >= 25) {
+    return { status: 'caution', label: 'No fly' }
+  }
+
+  if (checks.includes('caution') || MARGINAL_WEATHER_CODES.includes(current.weather_code)) {
+    return { status: 'caution', label: 'Marginal' }
+  }
+
+  return { status: 'operational', label: 'Flyable' }
 }
 
 export async function fetchFieldWeather(): Promise<FieldWeather> {
@@ -142,34 +151,36 @@ export async function fetchFieldWeather(): Promise<FieldWeather> {
   const da = densityAltitudeFt(fieldLocation.elevationFt, current.temperature_2m, current.surface_pressure)
   const conditions = WMO_LABELS[current.weather_code] ?? 'Unknown'
   const windDir = windLabel(current.wind_direction_10m)
+  const { status, label } = flyability(current)
 
   return {
     fetchedAt: current.time,
     summary: `${conditions} · ${windDir} ${Math.round(current.wind_speed_10m)} kt · ${Math.round(current.temperature_2m)}°F`,
-    status: overallStatus(current),
+    status,
+    statusLabel: label,
     items: [
       {
         id: 'wx-wind',
         name: 'Wind',
-        status: itemStatus('wind', current),
+        status: windItemStatus(current),
         detail: `${current.wind_direction_10m}° (${windDir}) at ${current.wind_speed_10m.toFixed(0)} kt, gusts ${current.wind_gusts_10m.toFixed(0)}`,
       },
       {
         id: 'wx-vis',
         name: 'Visibility',
-        status: itemStatus('vis', current),
+        status: visibilityItemStatus(current),
         detail: visSm >= 10 ? '10+ SM' : `${visSm.toFixed(1)} SM`,
       },
       {
         id: 'wx-cloud',
         name: 'Cloud cover',
-        status: itemStatus('cloud', current),
+        status: cloudItemStatus(current),
         detail: `${current.cloud_cover}% · ${conditions}`,
       },
       {
         id: 'wx-temp',
         name: 'Temp / density alt',
-        status: itemStatus('temp', current),
+        status: tempItemStatus(current),
         detail: `${Math.round(current.temperature_2m)}°F · DA ~${da.toLocaleString()} ft`,
       },
     ],

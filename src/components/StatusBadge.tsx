@@ -34,19 +34,22 @@ const statusConfig: Record<
 interface StatusBadgeProps {
   status: StatusLevel
   compact?: boolean
+  /** Override label (e.g. weather uses Flyable / Marginal / No fly) */
+  label?: string
 }
 
-export function StatusBadge({ status, compact = false }: StatusBadgeProps) {
+export function StatusBadge({ status, compact = false, label }: StatusBadgeProps) {
   const config = statusConfig[status]
+  const text = label ?? config.label
 
   if (compact) {
     return (
       <span
         className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${config.badge}`}
-        title={config.label}
+        title={text}
       >
         <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
-        {config.label}
+        {text}
       </span>
     )
   }
@@ -56,7 +59,7 @@ export function StatusBadge({ status, compact = false }: StatusBadgeProps) {
       className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${config.badge}`}
     >
       <span className={`h-2 w-2 rounded-full ${config.dot}`} />
-      {config.label}
+      {text}
     </span>
   )
 }

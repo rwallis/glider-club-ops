@@ -38,6 +38,7 @@ function mergeWeatherCategory(
         ...category,
         summary: 'Loading Open-Meteo forecast…',
         status: 'caution',
+        statusLabel: 'Loading',
         items: category.items.map((item) => ({
           ...item,
           detail: 'Loading…',
@@ -51,6 +52,7 @@ function mergeWeatherCategory(
         ...category,
         summary: 'Forecast unavailable',
         status: 'caution',
+        statusLabel: 'Offline',
         notes: weather.error ?? 'Could not reach Open-Meteo. Check connection and retry.',
       }
     }
@@ -59,6 +61,7 @@ function mergeWeatherCategory(
       ...category,
       summary: weather.weather.summary,
       status: weather.weather.status,
+      statusLabel: weather.weather.statusLabel,
       items: weather.weather.items,
       notes: weather.weather.notes,
     }
