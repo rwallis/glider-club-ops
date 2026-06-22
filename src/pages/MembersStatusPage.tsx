@@ -4,6 +4,8 @@ import { CategoryCard } from '../components/CategoryCard'
 import { StatusBadge } from '../components/StatusBadge'
 import { images } from '../data/images'
 import { useAuth } from '../context/AuthContext'
+import { useFieldWeather } from '../hooks/useFieldWeather'
+import type { CategoryCard as CategoryCardType } from '../types'
 
 function formatLastUpdated(iso: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -12,8 +14,8 @@ function formatLastUpdated(iso: string) {
   }).format(new Date(iso))
 }
 
-function countByStatus() {
-  const items = clubSnapshot.categories.flatMap((c) => c.items)
+function countByStatus(categories: CategoryCardType[]) {
+  const items = categories.flatMap((c) => c.items)
   return {
     total: items.length,
     operational: items.filter((i) => i.status === 'operational').length,
@@ -24,9 +26,51 @@ function countByStatus() {
   }
 }
 
+function mergeWeatherCategory(
+  categories: CategoryCardType[],
+  weather: ReturnType<typeof useFieldWeather>,
+): CategoryCardType[] {
+  return categories.map((category) => {
+    if (category.id !== 'weather') return category
+
+    if (weather.loading) {
+      return {
+        ...category,
+        summary: 'Loading Open-Meteo forecast…',
+        status: 'caution',
+        items: category.items.map((item) => ({
+          ...item,
+          detail: 'Loading…',
+        })),
+        notes: undefined,
+      }
+    }
+
+    if (weather.error || !weather.weather) {
+      return {
+        ...category,
+        summary: 'Forecast unavailable',
+        status: 'caution',
+        notes: weather.error ?? 'Could not reach Open-Meteo. Check connection and retry.',
+      }
+    }
+
+    return {
+      ...category,
+      summary: weather.weather.summary,
+      status: weather.weather.status,
+      items: weather.weather.items,
+      notes: weather.weather.notes,
+    }
+  })
+}
+
 export function MembersStatusPage() {
   const { logout } = useAuth()
-  const stats = countByStatus()
+  const fieldWeather = useFieldWeather()
+  const categories = mergeWeatherCategory(clubSnapshot.categories, fieldWeather)
+  const stats = countByStatus(categories)
+  const lastUpdated = fieldWeather.weather?.fetchedAt ?? clubSnapshot.lastUpdated
 
   return (
     <div className="members-dark min-h-screen">
@@ -66,7 +110,7 @@ export function MembersStatusPage() {
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={clubSnapshot.flyingDay ? 'operational' : 'caution'} />
             <span className="rounded-full bg-white/5 px-3 py-1.5 text-sm text-slate-400 ring-1 ring-white/10">
-              Updated {formatLastUpdated(clubSnapshot.lastUpdated)}
+              Updated {formatLastUpdated(lastUpdated)}
             </span>
           </div>
         </div>
@@ -89,7 +133,7 @@ export function MembersStatusPage() {
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {clubSnapshot.categories.map((category) => (
+          {categories.map((category) => (
             <CategoryCard key={category.id} category={category} />
           ))}
         </div>
