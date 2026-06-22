@@ -1,0 +1,65 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Outfit', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Public marketing site */
+.public-site {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.public-site h1,
+.public-site h2 {
+  font-family: var(--font-display);
+}
+
+/* Members dashboard — dark ops theme */
+.members-dark {
+  background: linear-gradient(160deg, #0c1a2e 0%, #102a43 45%, #0f2744 100%);
+  color: #e8f1fa;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-12px) translateX(8px); }
+}
+
+@keyframes float-slower {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(8px) translateX(-12px); }
+}
+
+@keyframes glide {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-8px) rotate(1deg); }
+}
+
+.animate-float-slow {
+  animation: float-slow 12s ease-in-out infinite;
+}
+
+.animate-float-slower {
+  animation: float-slower 16s ease-in-out infinite;
+}
+
+.animate-glide {
+  animation: glide 8s ease-in-out infinite;
+}
