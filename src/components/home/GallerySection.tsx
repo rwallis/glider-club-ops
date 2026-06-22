@@ -1,17 +1,57 @@
+import { useState } from 'react'
 import {
+  INITIAL_JOY_VISIBLE,
   JOY_OF_SOARING_QUOTE,
   JOY_OF_SOARING_VIDEO,
-  joyGalleryLayout,
   joyOfSoaringImages,
+  type JoyGalleryLayout,
+  type JoyImage,
 } from '../../data/joyOfSoaring'
 
-const layoutClass: Record<(typeof joyGalleryLayout)[number], string> = {
+const layoutClass: Record<JoyGalleryLayout, string> = {
   tall: 'sm:row-span-2',
   wide: 'sm:col-span-2',
   default: '',
 }
 
+function GalleryTile({ image }: { image: JoyImage }) {
+  const fit = image.fit ?? 'cover'
+
+  return (
+    <figure
+      className={`group relative overflow-hidden rounded-2xl bg-sky-200 shadow-lg shadow-sky-900/10 ring-1 ring-white/60 ${layoutClass[image.layout]}`}
+    >
+      <img
+        src={image.src}
+        alt={image.alt}
+        loading="lazy"
+        decoding="async"
+        style={{ objectPosition: image.objectPosition }}
+        className={`h-full w-full transition duration-500 group-hover:scale-105 ${
+          fit === 'contain' ? 'object-contain bg-sky-900/80 p-1' : 'object-cover'
+        }`}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-sky-950/35 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
+    </figure>
+  )
+}
+
+function GalleryGrid({ images }: { images: readonly JoyImage[] }) {
+  return (
+    <div className="grid auto-rows-[180px] grid-cols-2 gap-3 sm:auto-rows-[200px] sm:grid-cols-4 sm:gap-4">
+      {images.map((image) => (
+        <GalleryTile key={image.id} image={image} />
+      ))}
+    </div>
+  )
+}
+
 export function GallerySection() {
+  const [expanded, setExpanded] = useState(false)
+  const visibleImages = joyOfSoaringImages.slice(0, INITIAL_JOY_VISIBLE)
+  const extraImages = joyOfSoaringImages.slice(INITIAL_JOY_VISIBLE)
+  const hasMore = extraImages.length > 0
+
   return (
     <section id="gallery" className="scroll-mt-28 overflow-hidden bg-gradient-to-b from-sky-50 via-white to-sky-100/80 py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -55,30 +95,42 @@ export function GallerySection() {
           </div>
         </div>
 
-        <div className="mt-14 grid auto-rows-[180px] grid-cols-2 gap-3 sm:auto-rows-[200px] sm:grid-cols-4 sm:gap-4">
-          {joyOfSoaringImages.map((image, index) => {
-            const layout = joyGalleryLayout[index] ?? 'default'
-            return (
-              <figure
-                key={image.id}
-                className={`group relative overflow-hidden rounded-2xl bg-sky-200 shadow-lg shadow-sky-900/10 ring-1 ring-white/60 ${layoutClass[layout]}`}
+        <div className="mt-14">
+          <GalleryGrid images={visibleImages} />
+
+          {hasMore && (
+            <div
+              className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${
+                expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="pt-3 sm:pt-4">
+                  <GalleryGrid images={extraImages} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {hasMore && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setExpanded((open) => !open)}
+                aria-expanded={expanded}
+                className="inline-flex min-h-[48px] items-center gap-2 rounded-full border border-sky-200 bg-white px-6 py-3 text-sm font-semibold text-sky-800 shadow-sm transition hover:border-sky-300 hover:bg-sky-50"
               >
-                <img
-                  src={image.thumb}
-                  srcSet={`${image.thumb} 600w, ${image.src} 1200w`}
-                  sizes="(max-width: 640px) 50vw, 25vw"
-                  alt={image.alt}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-sky-950/35 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
-              </figure>
-            )
-          })}
+                {expanded ? 'Show fewer photos' : `Show ${extraImages.length} more photos`}
+                <span aria-hidden className="text-base leading-none">
+                  {expanded ? '▴' : '▾'}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
         <p className="mt-8 text-center text-sm text-slate-500">
-          Photos and video from{' '}
+          Photos from FLF Gliderport and{' '}
           <a
             href="https://www.faultlineflyers.com/the-joy-of-soaring"
             target="_blank"

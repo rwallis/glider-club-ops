@@ -5,3 +5,6 @@ export const fieldLocation = {
   elevationFt: 1150,
   timezone: 'America/Chicago',
 } as const
+
+/** Pilots within this radius are considered on the field for signup / check-in */
+export const FIELD_CHECK_IN_RADIUS_MILES = 2

@@ -29,7 +29,9 @@ export interface ClubSnapshot {
   categories: CategoryCard[]
 }
 
-export type SignupFlightStatus = 'queued' | 'flying' | 'completed' | 'cancelled'
+export type SignupFlightStatus = 'holding' | 'queued' | 'flying' | 'completed' | 'cancelled'
+
+export type SignupLocationStatus = 'on-field' | 'remote' | 'unknown'
 
 export interface SignupFlight {
   id: string
@@ -39,5 +41,8 @@ export interface SignupFlight {
   startTime: string | null
   endTime: string | null
   status: SignupFlightStatus
+  locationStatus: SignupLocationStatus
+  distanceMiles: number | null
+  checkedInAt: string | null
   createdAt: string
 }
