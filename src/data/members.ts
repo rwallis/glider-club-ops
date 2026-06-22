@@ -76,4 +76,6 @@ export const CLUB_MEMBERS = [
   'Guo Yucheng',
 ] as const
 
+export const CLUB_MEMBER_COUNT = CLUB_MEMBERS.length
+
 export type ClubMember = (typeof CLUB_MEMBERS)[number]

@@ -1,5 +1,6 @@
 import { site } from '../../data/siteContent'
 import { images } from '../../data/images'
+import { CLUB_MEMBER_COUNT } from '../../data/members'
 
 export function Hero() {
   return (
@@ -49,11 +50,12 @@ export function Hero() {
           </a>
         </div>
 
-        <dl className="mt-16 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <dl className="mt-16 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {[
             { label: 'Grass runway', value: `${site.runwayLength} ft` },
             { label: 'Club gliders', value: '6' },
             { label: 'Tow planes', value: '2' },
+            { label: 'Members', value: String(CLUB_MEMBER_COUNT) },
             { label: 'Flying', value: 'Weekends' },
           ].map((stat) => (
             <div
