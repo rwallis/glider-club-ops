@@ -155,7 +155,7 @@ function formatClouds(obs: MetarObservation): string {
 
 export async function fetchFieldWeather(): Promise<FieldWeather> {
   const ids = NEARBY_METAR_STATIONS.map((s) => s.id).join(',')
-  const response = await fetch(`https://aviationweather.gov/api/data/metar?ids=${ids}&format=json`)
+  const response = await fetch(`/api/weather?ids=${ids}`)
   if (!response.ok) throw new Error(`METAR request failed (${response.status})`)
 
   const observations = (await response.json()) as MetarObservation[]
