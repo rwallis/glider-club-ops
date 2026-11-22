@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import type { AircraftRecord, AnnualUrgency } from '../data/aircraftFleet'
+import type { AircraftRecord, AnnualUrgency, DemoRidesStatus } from '../data/aircraftFleet'
 import { useAircraftFleet } from '../context/AircraftFleetContext'
 import { annualUrgency, daysUntilDue, formatDaysLabel } from '../utils/annualDue'
+import { assessDemoRides } from '../utils/demoRides'
 import { fleetBoardSection, type FleetBoardSection } from '../utils/fleetBoard'
 
 type BoardFilter = 'all' | 'up' | 'down' | 'attention'
@@ -45,6 +46,21 @@ const URGENCY_STYLES: Record<
   },
 }
 
+const DEMO_PILL: Record<Exclude<DemoRidesStatus, 'na'>, { chip: string; label: string }> = {
+  up: {
+    chip: 'bg-emerald-500/20 text-emerald-300 ring-emerald-400/40',
+    label: 'Demo Up',
+  },
+  caution: {
+    chip: 'bg-amber-500/20 text-amber-200 ring-amber-400/40',
+    label: 'Demo Caution',
+  },
+  down: {
+    chip: 'bg-rose-500/20 text-rose-300 ring-rose-400/40',
+    label: 'Demo Down',
+  },
+}
+
 function sortFleet(fleet: AircraftRecord[]) {
   return [...fleet].sort((a, b) => {
     if (a.status !== b.status) return a.status === 'Down' ? -1 : 1
@@ -63,6 +79,8 @@ function AircraftCard({ aircraft }: { aircraft: AircraftRecord }) {
   const urgency = annualUrgency(aircraft.dueMmYy)
   const days = daysUntilDue(aircraft.dueMmYy)
   const urgencyUi = URGENCY_STYLES[urgency]
+  const demo = assessDemoRides(aircraft)
+  const demoPill = demo.applicable && demo.status !== 'na' ? DEMO_PILL[demo.status] : null
   const subtitle = [aircraft.type, aircraft.color, aircraft.category === 'tow' ? 'Tow' : null]
     .filter(Boolean)
     .join(' · ')
@@ -70,7 +88,11 @@ function AircraftCard({ aircraft }: { aircraft: AircraftRecord }) {
   return (
     <article
       className={`relative overflow-hidden rounded-lg border bg-white/[0.04] ${
-        aircraft.status === 'Down' ? 'border-rose-400/25' : 'border-white/10'
+        aircraft.status === 'Down' || demo.status === 'down'
+          ? 'border-rose-400/25'
+          : demo.status === 'caution'
+            ? 'border-amber-400/25'
+            : 'border-white/10'
       }`}
     >
       <div className={`absolute inset-y-0 left-0 w-1 ${urgencyUi.bar}`} aria-hidden />
@@ -83,15 +105,25 @@ function AircraftCard({ aircraft }: { aircraft: AircraftRecord }) {
             </h2>
             <p className="mt-0.5 truncate text-[11px] text-sky-200/70">{subtitle}</p>
           </div>
-          <span
-            className={`shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${
-              aircraft.status === 'Up'
-                ? 'bg-emerald-500/30 text-emerald-100 ring-emerald-400/55'
-                : 'bg-rose-500/30 text-rose-100 ring-rose-400/55'
-            }`}
-          >
-            Ops {aircraft.status}
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span
+              className={`rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wide ring-1 ring-inset ${
+                aircraft.status === 'Up'
+                  ? 'bg-emerald-500/30 text-emerald-100 ring-emerald-400/55'
+                  : 'bg-rose-500/30 text-rose-100 ring-rose-400/55'
+              }`}
+            >
+              {aircraft.status}
+            </span>
+            {demoPill ? (
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${demoPill.chip}`}
+                title={demo.detail}
+              >
+                {demoPill.label}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
@@ -277,8 +309,8 @@ export function MembersAircraftPage() {
         {(
           [
             ['all', 'All'],
-            ['down', 'Ops Down'],
-            ['up', 'Ops Up'],
+            ['down', 'Down'],
+            ['up', 'Up'],
             ['attention', 'Needs attention'],
           ] as const
         ).map(([id, label]) => (
