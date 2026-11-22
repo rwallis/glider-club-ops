@@ -315,8 +315,9 @@ export function MembersAircraftPage() {
           </p>
           <h1 className="font-display mt-1 text-3xl text-white sm:text-4xl">Aircraft status</h1>
           <p className="mt-2 max-w-xl text-sm text-slate-300/90">
-            Ops Up/Down plus Demo Rides for gliders (not tow planes). Missing hours or ≥95h → demo
-            down; ≥85h → yellow. Stale hours add 5h per weekend since last entry.
+            Ops Up/Down plus Demo Rides for gliders (not tow planes). Ops Down → demo down. Missing
+            hours or ≥95h → demo down; ≥85h → yellow. Stale hours add 5h per weekend since last
+            entry.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">

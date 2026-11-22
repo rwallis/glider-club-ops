@@ -49,7 +49,7 @@ export interface DemoRidesAssessment {
 export function assessDemoRides(
   aircraft: Pick<
     AircraftRecord,
-    'category' | 'hoursSinceAnnual' | 'hoursLastEntered' | 'lastUpdated'
+    'category' | 'status' | 'hoursSinceAnnual' | 'hoursLastEntered' | 'lastUpdated'
   >,
   now = new Date()
 ): DemoRidesAssessment {
@@ -62,6 +62,19 @@ export function assessDemoRides(
       recordedHours: aircraft.hoursSinceAnnual,
       estimatedExtraHours: 0,
       effectiveHours: null,
+      hoursStale: false,
+    }
+  }
+
+  if (aircraft.status === 'Down') {
+    return {
+      applicable: true,
+      status: 'down',
+      label: 'Down',
+      detail: 'Down for ops — also down for demo rides',
+      recordedHours: aircraft.hoursSinceAnnual,
+      estimatedExtraHours: 0,
+      effectiveHours: aircraft.hoursSinceAnnual,
       hoursStale: false,
     }
   }
