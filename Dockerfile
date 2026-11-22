@@ -13,7 +13,7 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm install --omit=dev
 COPY --from=build /app/dist ./dist
-COPY server.mjs weatherApi.mjs ./
+COPY server.mjs weatherApi.mjs glidingOpsHours.mjs ./
 
 EXPOSE 3000
 CMD ["node", "server.mjs"]
