@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import type { AircraftRecord, AnnualUrgency } from '../data/aircraftFleet'
+import type { AircraftRecord, AnnualUrgency, DemoRidesStatus } from '../data/aircraftFleet'
 import { useAircraftFleet } from '../context/AircraftFleetContext'
 import { annualUrgency, daysUntilDue, formatDaysLabel } from '../utils/annualDue'
+import { assessDemoRides } from '../utils/demoRides'
 
-type BoardFilter = 'all' | 'up' | 'down' | 'attention'
+type BoardFilter = 'all' | 'up' | 'down' | 'attention' | 'demo-down'
 
 const URGENCY_STYLES: Record<
   AnnualUrgency,
@@ -31,6 +32,28 @@ const URGENCY_STYLES: Record<
   },
 }
 
+const DEMO_STYLES: Record<
+  DemoRidesStatus,
+  { chip: string; label: string }
+> = {
+  up: {
+    chip: 'bg-emerald-500/20 text-emerald-300 ring-emerald-400/40',
+    label: 'Demo Up',
+  },
+  caution: {
+    chip: 'bg-amber-500/20 text-amber-200 ring-amber-400/40',
+    label: 'Demo Caution',
+  },
+  down: {
+    chip: 'bg-rose-500/20 text-rose-300 ring-rose-400/40',
+    label: 'Demo Down',
+  },
+  na: {
+    chip: 'bg-slate-500/20 text-slate-400 ring-slate-400/30',
+    label: 'Demo N/A',
+  },
+}
+
 function sortFleet(fleet: AircraftRecord[]) {
   return [...fleet].sort((a, b) => {
     if (a.status !== b.status) return a.status === 'Down' ? -1 : 1
@@ -49,14 +72,20 @@ function AircraftCard({ aircraft }: { aircraft: AircraftRecord }) {
   const urgency = annualUrgency(aircraft.dueMmYy)
   const days = daysUntilDue(aircraft.dueMmYy)
   const urgencyUi = URGENCY_STYLES[urgency]
-  const subtitle = [aircraft.type, aircraft.color].filter(Boolean).join(' · ')
+  const demo = assessDemoRides(aircraft)
+  const demoUi = DEMO_STYLES[demo.status]
+  const subtitle = [aircraft.type, aircraft.color, aircraft.category === 'tow' ? 'Tow' : null]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <article
       className={`relative overflow-hidden rounded-2xl border bg-white/[0.04] shadow-lg shadow-black/20 backdrop-blur-sm ${
-        aircraft.status === 'Down'
+        aircraft.status === 'Down' || demo.status === 'down'
           ? 'border-rose-400/25'
-          : 'border-white/10'
+          : demo.status === 'caution'
+            ? 'border-amber-400/25'
+            : 'border-white/10'
       }`}
     >
       <div className={`absolute inset-y-0 left-0 w-1.5 ${urgencyUi.bar}`} aria-hidden />
@@ -69,15 +98,23 @@ function AircraftCard({ aircraft }: { aircraft: AircraftRecord }) {
             </h2>
             <p className="mt-0.5 text-sm text-sky-200/70">{subtitle}</p>
           </div>
-          <span
-            className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ring-1 ring-inset ${
-              aircraft.status === 'Up'
-                ? 'bg-emerald-500/20 text-emerald-300 ring-emerald-400/40'
-                : 'bg-rose-500/20 text-rose-300 ring-rose-400/40'
-            }`}
-          >
-            {aircraft.status}
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <span
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ring-1 ring-inset ${
+                aircraft.status === 'Up'
+                  ? 'bg-emerald-500/20 text-emerald-300 ring-emerald-400/40'
+                  : 'bg-rose-500/20 text-rose-300 ring-rose-400/40'
+              }`}
+            >
+              Ops {aircraft.status}
+            </span>
+            <span
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ring-1 ring-inset ${demoUi.chip}`}
+              title={demo.detail}
+            >
+              {demoUi.label}
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -97,7 +134,16 @@ function AircraftCard({ aircraft }: { aircraft: AircraftRecord }) {
             <dt className="text-xs uppercase tracking-wide text-slate-400">Hours since</dt>
             <dd className="mt-0.5 text-slate-200">
               {aircraft.hoursSinceAnnual != null ? aircraft.hoursSinceAnnual : '—'}
+              {demo.estimatedExtraHours > 0 ? (
+                <span className="block text-xs text-amber-200/80">
+                  ~{demo.effectiveHours?.toFixed(1)} est. (+{demo.estimatedExtraHours} weekends)
+                </span>
+              ) : null}
             </dd>
+          </div>
+          <div className="col-span-2">
+            <dt className="text-xs uppercase tracking-wide text-slate-400">Demo rides</dt>
+            <dd className="mt-0.5 text-slate-200">{demo.detail}</dd>
           </div>
           <div className="col-span-2">
             <dt className="text-xs uppercase tracking-wide text-slate-400">Grounded reason</dt>
@@ -115,7 +161,12 @@ function AircraftCard({ aircraft }: { aircraft: AircraftRecord }) {
           </div>
           <div className="col-span-2">
             <dt className="text-xs uppercase tracking-wide text-slate-400">Last updated</dt>
-            <dd className="mt-0.5 text-slate-400">{aircraft.lastUpdated ?? '—'}</dd>
+            <dd className="mt-0.5 text-slate-400">
+              {aircraft.lastUpdated ?? '—'}
+              {aircraft.hoursLastEntered
+                ? ` · hours entered ${aircraft.hoursLastEntered}`
+                : ''}
+            </dd>
           </div>
         </dl>
 
@@ -193,7 +244,7 @@ function AircraftCard({ aircraft }: { aircraft: AircraftRecord }) {
                 step={0.1}
                 className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400/50"
                 defaultValue={aircraft.hoursSinceAnnual ?? ''}
-                placeholder="Add later"
+                placeholder="Required for demo rides"
                 onBlur={(e) => {
                   const raw = e.target.value.trim()
                   const next = raw === '' ? null : Number(raw)
@@ -234,9 +285,18 @@ export function MembersAircraftPage() {
     return sorted.filter((a) => {
       if (filter === 'up') return a.status === 'Up'
       if (filter === 'down') return a.status === 'Down'
+      if (filter === 'demo-down') return assessDemoRides(a).status === 'down'
       if (filter === 'attention') {
         const u = annualUrgency(a.dueMmYy)
-        return a.status === 'Down' || u === 'red' || u === 'amber' || u === 'unknown'
+        const demo = assessDemoRides(a)
+        return (
+          a.status === 'Down' ||
+          u === 'red' ||
+          u === 'amber' ||
+          u === 'unknown' ||
+          demo.status === 'down' ||
+          demo.status === 'caution'
+        )
       }
       return true
     })
@@ -244,6 +304,7 @@ export function MembersAircraftPage() {
 
   const upCount = fleet.filter((a) => a.status === 'Up').length
   const downCount = fleet.filter((a) => a.status === 'Down').length
+  const demoDownCount = fleet.filter((a) => assessDemoRides(a).status === 'down').length
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -254,16 +315,19 @@ export function MembersAircraftPage() {
           </p>
           <h1 className="font-display mt-1 text-3xl text-white sm:text-4xl">Aircraft status</h1>
           <p className="mt-2 max-w-xl text-sm text-slate-300/90">
-            Up / Down board with annual due (MM/YY). Hours can be filled in later. Anyone signed in
-            can edit.
+            Ops Up/Down plus Demo Rides for gliders (not tow planes). Missing hours or ≥95h → demo
+            down; ≥85h → yellow. Stale hours add 5h per weekend since last entry.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span className="rounded-lg bg-emerald-500/15 px-3 py-1.5 text-emerald-300 ring-1 ring-emerald-400/30">
-            {upCount} Up
+            {upCount} Ops Up
           </span>
           <span className="rounded-lg bg-rose-500/15 px-3 py-1.5 text-rose-300 ring-1 ring-rose-400/30">
-            {downCount} Down
+            {downCount} Ops Down
+          </span>
+          <span className="rounded-lg bg-rose-500/15 px-3 py-1.5 text-rose-200 ring-1 ring-rose-400/30">
+            {demoDownCount} Demo Down
           </span>
           <button
             type="button"
@@ -279,8 +343,9 @@ export function MembersAircraftPage() {
         {(
           [
             ['all', 'All'],
-            ['down', 'Down'],
-            ['up', 'Up'],
+            ['down', 'Ops Down'],
+            ['up', 'Ops Up'],
+            ['demo-down', 'Demo Down'],
             ['attention', 'Needs attention'],
           ] as const
         ).map(([id, label]) => (

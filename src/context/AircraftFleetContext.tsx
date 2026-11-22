@@ -10,6 +10,7 @@ import {
 import {
   AIRCRAFT_FLEET_STORAGE_KEY,
   SEED_AIRCRAFT_FLEET,
+  normalizeAircraftRecord,
   type AircraftRecord,
   type AircraftStatus,
 } from '../data/aircraftFleet'
@@ -17,7 +18,12 @@ import {
 type AircraftPatch = Partial<
   Pick<
     AircraftRecord,
-    'status' | 'lastAnnual' | 'dueMmYy' | 'hoursSinceAnnual' | 'reasonGrounded'
+    | 'status'
+    | 'lastAnnual'
+    | 'dueMmYy'
+    | 'hoursSinceAnnual'
+    | 'hoursLastEntered'
+    | 'reasonGrounded'
   >
 >
 
@@ -37,11 +43,13 @@ function loadFleet(): AircraftRecord[] {
   try {
     const raw = localStorage.getItem(AIRCRAFT_FLEET_STORAGE_KEY)
     if (!raw) return SEED_AIRCRAFT_FLEET.map((a) => ({ ...a }))
-    const parsed = JSON.parse(raw) as AircraftRecord[]
+    const parsed = JSON.parse(raw) as Partial<AircraftRecord>[]
     if (!Array.isArray(parsed) || parsed.length === 0) {
       return SEED_AIRCRAFT_FLEET.map((a) => ({ ...a }))
     }
     return parsed
+      .filter((row): row is Partial<AircraftRecord> & { id: string } => Boolean(row?.id))
+      .map(normalizeAircraftRecord)
   } catch {
     return SEED_AIRCRAFT_FLEET.map((a) => ({ ...a }))
   }
@@ -58,10 +66,14 @@ export function AircraftFleetProvider({ children }: { children: ReactNode }) {
     setFleet((prev) =>
       prev.map((aircraft) => {
         if (aircraft.id !== id) return aircraft
+        const today = todayIso()
         const next: AircraftRecord = {
           ...aircraft,
           ...patch,
-          lastUpdated: todayIso(),
+          lastUpdated: today,
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, 'hoursSinceAnnual')) {
+          next.hoursLastEntered = patch.hoursSinceAnnual == null ? null : today
         }
         if (patch.status === 'Up') {
           next.reasonGrounded = null
