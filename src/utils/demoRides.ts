@@ -1,4 +1,8 @@
 import type { AircraftRecord, DemoRidesStatus } from '../data/aircraftFleet'
+import { fleetBoardSection } from './fleetBoard'
+
+export type { FleetBoardSection } from './fleetBoard'
+export { fleetBoardSection }
 
 /** Hard stop for demo rides (hours since last annual). */
 export const DEMO_RIDES_DOWN_HOURS = 95
@@ -9,19 +13,7 @@ export const DEMO_RIDES_HOURS_PER_WEEKEND = 5
 
 /** Demo rides only on 2-seat demo-capable types (2-33s and Grob). */
 export function isDemoCapableType(type: string): boolean {
-  const t = type.trim().toLowerCase()
-  return t.includes('2-33') || t.includes('grob')
-}
-
-export type FleetBoardSection = 'tow' | 'two-seat' | 'single-seat'
-
-/** Board sections: tow planes, 2-seat demo gliders, single-seat. */
-export function fleetBoardSection(
-  aircraft: Pick<AircraftRecord, 'category' | 'type'>
-): FleetBoardSection {
-  if (aircraft.category === 'tow') return 'tow'
-  if (isDemoCapableType(aircraft.type)) return 'two-seat'
-  return 'single-seat'
+  return fleetBoardSection({ category: 'glider', type }) === 'two-seat'
 }
 
 function startOfLocalDay(d: Date) {
