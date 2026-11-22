@@ -11,17 +11,23 @@ from openpyxl.worksheet.datavalidation import DataValidation
 OUT = Path(__file__).resolve().parents[1] / "docs" / "Aircraft-Status-Board.xlsx"
 
 # As of 2026-11-22
+# type, color, tail, status, last_annual, due, hours, reason, last_updated, urgency, demo
 FLEET = [
-    # type, color, tail, status, last_annual, due, hours, reason, last_updated, urgency
-    ("Pawnee", "", "N42VA", "Down", "", "05/26", "", "Down since May 2026", "2026-11-22", "red"),
-    ("Cessna", "", "N48887", "Down", "", "10/26", "", "Annual overdue", "2026-11-22", "red"),
-    ("2-33", "Yellow", "N1185S", "Down", "", "10/26", 65.7, "Annual overdue", "2026-11-22", "red"),
-    ("2-33", "White/Green", "N7757S", "Up", "", "05/27", 2.5, "", "2026-11-22", "green"),
-    ("2-33", "White", "N2479W", "Up", "", "12/26", 43.9, "", "2026-11-22", "amber"),
-    ("1-26", "White", "N11139S", "Up", "", "05/27", 21.6, "", "2026-11-22", "green"),
-    ("1-26", "White/Yellow", "N27037", "Down", "", "", "", "Annual due unknown", "2026-11-22", "unknown"),
-    ("1-36", "", "N136YP", "Up", "", "05/27", 30.2, "", "2026-11-22", "green"),
-    ("Grob", "", "N160SS", "Up", "", "01/27", 18.9, "", "2026-11-22", "green"),
+    ("Pawnee", "", "N42VA", "Down", "", "05/26", "", "Down since May 2026", "2026-11-22", "red", "Demo N/A"),
+    ("Cessna", "", "N48887", "Down", "", "10/26", "", "Annual overdue", "2026-11-22", "red", "Demo N/A"),
+    ("2-33", "Yellow", "N1185S", "Down", "", "10/26", 65.7, "Annual overdue", "2026-11-22", "red", "Demo Down"),
+    ("2-33", "White/Green", "N7757S", "Up", "", "05/27", 2.5, "", "2026-11-22", "green", "Demo Up"),
+    ("2-33", "White", "N2479W", "Up", "", "12/26", 43.9, "", "2026-11-22", "amber", "Demo Up"),
+    ("Grob", "", "N160SS", "Up", "", "01/27", 18.9, "", "2026-11-22", "green", "Demo Up"),
+    ("1-26", "White", "N11139S", "Up", "", "05/27", 21.6, "", "2026-11-22", "green", "Demo N/A"),
+    ("1-26", "White/Yellow", "N27037", "Down", "", "", "", "Annual due unknown", "2026-11-22", "unknown", "Demo N/A"),
+    ("1-36", "", "N136YP", "Up", "", "05/27", 30.2, "", "2026-11-22", "green", "Demo N/A"),
+]
+
+SECTIONS = [
+    ("Tow planes", "Launch aircraft — demo rides N/A", [0, 1]),
+    ("2-seat gliders", "2-33s and Grob — demo rides apply", [2, 3, 4, 5]),
+    ("Single-seat gliders", "1-26s and 1-36 — demo rides N/A", [6, 7, 8]),
 ]
 
 FILL = {
@@ -38,15 +44,22 @@ FILL = {
     "white": PatternFill("solid", fgColor="FFFFFF"),
     "data_header": PatternFill("solid", fgColor="1E293B"),
     "data_alt": PatternFill("solid", fgColor="F8FAFC"),
+    "demo_up": PatternFill("solid", fgColor="064E3B"),
+    "demo_down": PatternFill("solid", fgColor="7F1D1D"),
+    "demo_na": PatternFill("solid", fgColor="334155"),
 }
 
 FONT = {
     "title": Font(name="Arial", size=22, bold=True, color="F8FAFC"),
     "subtitle": Font(name="Arial", size=11, color="7DD3FC"),
+    "section": Font(name="Arial", size=14, bold=True, color="F8FAFC"),
+    "section_sub": Font(name="Arial", size=9, color="94A3B8"),
     "tail": Font(name="Arial", size=18, bold=True, color="FFFFFF"),
     "meta": Font(name="Arial", size=10, color="BAE6FD"),
     "label": Font(name="Arial", size=8, bold=True, color="94A3B8"),
     "value": Font(name="Arial", size=11, color="E2E8F0"),
+    "ops_chip": Font(name="Arial", size=12, bold=True, color="FFFFFF"),
+    "demo_chip": Font(name="Arial", size=8, bold=True, color="FFFFFF"),
     "chip": Font(name="Arial", size=10, bold=True, color="FFFFFF"),
     "legend": Font(name="Arial", size=10, color="CBD5E1"),
     "data": Font(name="Arial", size=11, color="0F172A"),
@@ -59,6 +72,8 @@ THIN = Border(
     top=Side(style="thin", color="334155"),
     bottom=Side(style="thin", color="334155"),
 )
+
+
 def paint(ws, row, col, value="", fill=None, font=None, align=None, border=None):
     cell = ws.cell(row=row, column=col, value=value)
     if fill:
@@ -72,25 +87,12 @@ def paint(ws, row, col, value="", fill=None, font=None, align=None, border=None)
     return cell
 
 
-def merge_paint(ws, r1, c1, r2, c2, value="", fill=None, font=None, align=None, border=None):
-    for r in range(r1, r2 + 1):
-        for c in range(c1, c2 + 1):
-            cell = ws.cell(row=r, column=c)
-            if fill:
-                cell.fill = fill
-            if border:
-                cell.border = border
-    ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
-    cell = ws.cell(row=r1, column=c1, value=value)
-    if fill:
-        cell.fill = fill
-    if font:
-        cell.font = font
-    if align:
-        cell.alignment = align
-    if border:
-        cell.border = border
-    return cell
+def demo_fill(demo: str):
+    if demo == "Demo Up":
+        return FILL["demo_up"]
+    if demo == "Demo Down":
+        return FILL["demo_down"]
+    return FILL["demo_na"]
 
 
 def build_fleet_data(wb: Workbook):
@@ -145,9 +147,9 @@ def build_fleet_data(wb: Workbook):
 
 
 def card_block(ws, start_row, start_col, aircraft):
-    type_, color, tail, status, last_annual, due, hours, reason, updated, urgency = aircraft
-    # Card is 4 cols x 8 rows
-    end_row = start_row + 7
+    type_, color, tail, status, last_annual, due, hours, reason, updated, urgency, demo = aircraft
+    # Card is 4 cols x 9 rows (extra row for demo)
+    end_row = start_row + 8
     end_col = start_col + 3
 
     urgency_fill = FILL.get(urgency, FILL["unknown"])
@@ -158,16 +160,14 @@ def card_block(ws, start_row, start_col, aircraft):
     hours_show = hours if hours != "" else "—"
     last_show = last_annual if last_annual else "—"
 
-    # Card body fill
     for r in range(start_row, end_row + 1):
         for c in range(start_col, end_col + 1):
             paint(ws, r, c, "", FILL["card"], border=THIN)
 
-    # Urgency strip
     for r in range(start_row, end_row + 1):
         paint(ws, r, start_col, "", urgency_fill, border=THIN)
 
-    # Tail (2x2)
+    # Tail (taller for ops prominence)
     ws.merge_cells(
         start_row=start_row,
         start_column=start_col + 1,
@@ -179,31 +179,41 @@ def card_block(ws, start_row, start_col, aircraft):
     t.fill = FILL["card"]
     t.alignment = Alignment(horizontal="left", vertical="center")
 
-    # Status chip
+    # Larger Ops chip (2 rows)
     ws.merge_cells(
         start_row=start_row,
         start_column=start_col + 3,
         end_row=start_row + 1,
         end_column=start_col + 3,
     )
-    s = ws.cell(row=start_row, column=start_col + 3, value=status.upper())
-    s.font = FONT["chip"]
+    s = ws.cell(row=start_row, column=start_col + 3, value=f"OPS {status.upper()}")
+    s.font = FONT["ops_chip"]
     s.fill = status_fill
     s.alignment = Alignment(horizontal="center", vertical="center")
     s.border = THIN
 
-    # Subtitle
+    # Smaller Demo chip
+    paint(
+        ws,
+        start_row + 2,
+        start_col + 3,
+        demo,
+        demo_fill(demo),
+        FONT["demo_chip"],
+        Alignment(horizontal="center", vertical="center"),
+        THIN,
+    )
+
     ws.merge_cells(
         start_row=start_row + 2,
         start_column=start_col + 1,
         end_row=start_row + 2,
-        end_column=end_col,
+        end_column=start_col + 2,
     )
     sub = ws.cell(row=start_row + 2, column=start_col + 1, value=subtitle)
     sub.font = FONT["meta"]
     sub.fill = FILL["card"]
 
-    # Due chip
     ws.merge_cells(
         start_row=start_row + 3,
         start_column=start_col + 1,
@@ -244,16 +254,17 @@ def card_block(ws, start_row, start_col, aircraft):
     ws.merge_cells(
         start_row=start_row + 7,
         start_column=start_col + 1,
-        end_row=start_row + 7,
+        end_row=start_row + 8,
         end_column=end_col,
     )
     note = ws.cell(
         row=start_row + 7,
         column=start_col + 1,
-        value="Edit Status / Due on FleetData tab",
+        value="Edit Status / Due / Hours on FleetData tab",
     )
     note.font = Font(name="Arial", size=8, italic=True, color="94A3B8")
     note.fill = FILL["muted"]
+    note.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
     return end_row, end_col
 
@@ -262,18 +273,13 @@ def build_board(wb: Workbook):
     ws = wb.create_sheet("Board", 1)
     ws.sheet_view.showGridLines = False
 
-    # Canvas size: 3 cards per row, each 4 cols, with 1-col gap → cols 1..14
     for c in range(1, 16):
         ws.column_dimensions[get_column_letter(c)].width = 12
-    for r in range(1, 40):
+    for r in range(1, 55):
         ws.row_dimensions[r].height = 18
-
-    # Background wash (no merges yet)
-    for r in range(1, 40):
         for c in range(1, 16):
             paint(ws, r, c, "", FILL["bg"])
 
-    # Header band
     for r in range(1, 4):
         for c in range(1, 15):
             paint(ws, r, c, "", FILL["header"])
@@ -287,14 +293,13 @@ def build_board(wb: Workbook):
     ws.merge_cells("A3:N3")
     sub = ws["A3"]
     sub.value = (
-        "Fredericksburg Lonestar Flyers  ·  Up / Down  ·  Annual due MM/YY  ·  "
-        "Red / Amber / Green urgency strip"
+        "Fredericksburg Lonestar Flyers  ·  Tow / 2-seat / Single-seat  ·  "
+        "Ops pill larger than Demo  ·  Demo only on 2-33 & Grob"
     )
     sub.font = FONT["subtitle"]
     sub.alignment = Alignment(horizontal="left", vertical="center")
     sub.fill = FILL["header"]
 
-    # Legend
     paint(ws, 4, 1, "", FILL["red"])
     paint(ws, 4, 2, "≤14d / overdue", FILL["bg"], FONT["legend"])
     paint(ws, 4, 4, "", FILL["amber"])
@@ -304,31 +309,44 @@ def build_board(wb: Workbook):
     paint(ws, 4, 10, "", FILL["unknown"])
     paint(ws, 4, 11, "Due unknown", FILL["bg"], FONT["legend"])
 
-    # Sort: Down first (already ordered in FLEET)
-    positions = [
-        (6, 1),
-        (6, 6),
-        (6, 11),
-        (16, 1),
-        (16, 6),
-        (16, 11),
-        (26, 1),
-        (26, 6),
-        (26, 11),
-    ]
-    for aircraft, (r, c) in zip(FLEET, positions):
-        card_block(ws, r, c, aircraft)
+    card_cols = [1, 6, 11]
+    row = 6
+    for section_title, section_blurb, indices in SECTIONS:
+        for c in range(1, 15):
+            paint(ws, row, c, "", FILL["header"])
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=14)
+        h = ws.cell(row=row, column=1, value=section_title)
+        h.font = FONT["section"]
+        h.fill = FILL["header"]
+        h.alignment = Alignment(horizontal="left", vertical="center")
+        row += 1
+        for c in range(1, 15):
+            paint(ws, row, c, "", FILL["header"])
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=14)
+        b = ws.cell(row=row, column=1, value=section_blurb)
+        b.font = FONT["section_sub"]
+        b.fill = FILL["header"]
+        row += 1
 
-    # Counts
+        for i, idx in enumerate(indices):
+            col = card_cols[i % 3]
+            if i > 0 and i % 3 == 0:
+                row += 10
+            card_block(ws, row, col, FLEET[idx])
+        # advance past last card row (+9 height) plus gap
+        cards_in_last_row = ((len(indices) - 1) % 3) + 1
+        _ = cards_in_last_row
+        row += 11
+
     up = sum(1 for a in FLEET if a[3] == "Up")
     down = sum(1 for a in FLEET if a[3] == "Down")
-    for r in range(35, 37):
+    for r in range(row, row + 2):
         for c in range(1, 15):
             paint(ws, r, c, "", FILL["header"])
-    ws.merge_cells("A35:N36")
-    foot = ws["A35"]
+    ws.merge_cells(start_row=row, start_column=1, end_row=row + 1, end_column=14)
+    foot = ws.cell(row=row, column=1)
     foot.value = (
-        f"{up} Up   ·   {down} Down   ·   Prototype seed 2026-11-22   ·   Source: FleetData tab"
+        f"{up} Ops Up   ·   {down} Ops Down   ·   Seed 2026-11-22   ·   Source: FleetData tab"
     )
     foot.font = FONT["legend"]
     foot.alignment = Alignment(horizontal="left", vertical="center")
@@ -340,7 +358,6 @@ def build_board(wb: Workbook):
 
 def main():
     wb = Workbook()
-    # remove default
     default = wb.active
     wb.remove(default)
     build_fleet_data(wb)

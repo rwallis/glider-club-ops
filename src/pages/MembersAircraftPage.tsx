@@ -2,9 +2,33 @@ import { useMemo, useState } from 'react'
 import type { AircraftRecord, AnnualUrgency, DemoRidesStatus } from '../data/aircraftFleet'
 import { useAircraftFleet } from '../context/AircraftFleetContext'
 import { annualUrgency, daysUntilDue, formatDaysLabel } from '../utils/annualDue'
-import { assessDemoRides } from '../utils/demoRides'
+import {
+  assessDemoRides,
+  fleetBoardSection,
+  type FleetBoardSection,
+} from '../utils/demoRides'
 
 type BoardFilter = 'all' | 'up' | 'down' | 'attention' | 'demo-down'
+
+const SECTION_META: Record<
+  FleetBoardSection,
+  { title: string; blurb: string }
+> = {
+  tow: {
+    title: 'Tow planes',
+    blurb: 'Launch aircraft — demo rides N/A',
+  },
+  'two-seat': {
+    title: '2-seat gliders',
+    blurb: '2-33s and Grob — demo rides apply',
+  },
+  'single-seat': {
+    title: 'Single-seat gliders',
+    blurb: '1-26s and 1-36 — demo rides N/A',
+  },
+}
+
+const SECTION_ORDER: FleetBoardSection[] = ['tow', 'two-seat', 'single-seat']
 
 const URGENCY_STYLES: Record<
   AnnualUrgency,
@@ -100,16 +124,16 @@ function AircraftCard({ aircraft }: { aircraft: AircraftRecord }) {
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <span
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ring-1 ring-inset ${
+              className={`rounded-md px-3 py-1.5 text-sm font-bold uppercase tracking-wide ring-1 ring-inset ${
                 aircraft.status === 'Up'
-                  ? 'bg-emerald-500/20 text-emerald-300 ring-emerald-400/40'
-                  : 'bg-rose-500/20 text-rose-300 ring-rose-400/40'
+                  ? 'bg-emerald-500/25 text-emerald-200 ring-emerald-400/50'
+                  : 'bg-rose-500/25 text-rose-200 ring-rose-400/50'
               }`}
             >
               Ops {aircraft.status}
             </span>
             <span
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ring-1 ring-inset ${demoUi.chip}`}
+              className={`rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${demoUi.chip}`}
               title={demo.detail}
             >
               {demoUi.label}
@@ -302,6 +326,14 @@ export function MembersAircraftPage() {
     })
   }, [sorted, filter])
 
+  const sections = useMemo(() => {
+    return SECTION_ORDER.map((id) => ({
+      id,
+      ...SECTION_META[id],
+      aircraft: visible.filter((a) => fleetBoardSection(a) === id),
+    })).filter((s) => s.aircraft.length > 0)
+  }, [visible])
+
   const upCount = fleet.filter((a) => a.status === 'Up').length
   const downCount = fleet.filter((a) => a.status === 'Down').length
   const demoDownCount = fleet.filter((a) => assessDemoRides(a).status === 'down').length
@@ -315,9 +347,9 @@ export function MembersAircraftPage() {
           </p>
           <h1 className="font-display mt-1 text-3xl text-white sm:text-4xl">Aircraft status</h1>
           <p className="mt-2 max-w-xl text-sm text-slate-300/90">
-            Ops Up/Down plus Demo Rides for gliders (not tow planes). Ops Down → demo down. Missing
-            hours or ≥95h → demo down; ≥85h → yellow. Stale hours add 5h per weekend since last
-            entry.
+            Grouped as tow, 2-seat (2-33 / Grob), and single-seat. Demo rides apply only to 2-seat
+            gliders. Ops Down → demo down. Missing hours or ≥95h → demo down; ≥85h → yellow. Stale
+            hours add 5h per weekend since last entry.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -365,9 +397,24 @@ export function MembersAircraftPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {visible.map((aircraft) => (
-          <AircraftCard key={aircraft.id} aircraft={aircraft} />
+      <div className="space-y-10">
+        {sections.map((section) => (
+          <section key={section.id} aria-labelledby={`fleet-section-${section.id}`}>
+            <div className="mb-4 border-b border-white/10 pb-2">
+              <h2
+                id={`fleet-section-${section.id}`}
+                className="font-display text-xl text-white sm:text-2xl"
+              >
+                {section.title}
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-400">{section.blurb}</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {section.aircraft.map((aircraft) => (
+                <AircraftCard key={aircraft.id} aircraft={aircraft} />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
 

@@ -7,6 +7,23 @@ export const DEMO_RIDES_YELLOW_HOURS = 85
 /** Assumed demo hours flown each weekend when hours log is stale. */
 export const DEMO_RIDES_HOURS_PER_WEEKEND = 5
 
+/** Demo rides only on 2-seat demo-capable types (2-33s and Grob). */
+export function isDemoCapableType(type: string): boolean {
+  const t = type.trim().toLowerCase()
+  return t.includes('2-33') || t.includes('grob')
+}
+
+export type FleetBoardSection = 'tow' | 'two-seat' | 'single-seat'
+
+/** Board sections: tow planes, 2-seat demo gliders, single-seat. */
+export function fleetBoardSection(
+  aircraft: Pick<AircraftRecord, 'category' | 'type'>
+): FleetBoardSection {
+  if (aircraft.category === 'tow') return 'tow'
+  if (isDemoCapableType(aircraft.type)) return 'two-seat'
+  return 'single-seat'
+}
+
 function startOfLocalDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
@@ -49,7 +66,7 @@ export interface DemoRidesAssessment {
 export function assessDemoRides(
   aircraft: Pick<
     AircraftRecord,
-    'category' | 'status' | 'hoursSinceAnnual' | 'hoursLastEntered' | 'lastUpdated'
+    'category' | 'type' | 'status' | 'hoursSinceAnnual' | 'hoursLastEntered' | 'lastUpdated'
   >,
   now = new Date()
 ): DemoRidesAssessment {
@@ -59,6 +76,19 @@ export function assessDemoRides(
       status: 'na',
       label: 'N/A',
       detail: 'Demo rides not applicable to tow planes',
+      recordedHours: aircraft.hoursSinceAnnual,
+      estimatedExtraHours: 0,
+      effectiveHours: null,
+      hoursStale: false,
+    }
+  }
+
+  if (!isDemoCapableType(aircraft.type)) {
+    return {
+      applicable: false,
+      status: 'na',
+      label: 'N/A',
+      detail: 'Demo rides not applicable to single-seat gliders',
       recordedHours: aircraft.hoursSinceAnnual,
       estimatedExtraHours: 0,
       effectiveHours: null,

@@ -1,7 +1,7 @@
 export type AircraftStatus = 'Up' | 'Down'
 export type AircraftCategory = 'glider' | 'tow'
 export type AnnualUrgency = 'green' | 'amber' | 'red' | 'unknown'
-/** Demo-ride airworthiness — not used for tow planes. */
+/** Demo-ride airworthiness — tow + single-seat are N/A; only 2-33 / Grob apply. */
 export type DemoRidesStatus = 'up' | 'caution' | 'down' | 'na'
 
 export interface AircraftRecord {
