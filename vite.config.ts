@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 // @ts-expect-error shared JS weather proxy
 import { fetchNearbyMetarObservations } from './weatherApi.mjs'
 // @ts-expect-error shared JS glidingops hours proxy
-import { fetchHoursSinceAnnual } from './glidingOpsHours.mjs'
+import { fetchHoursSinceAnnual, fetchOpsStats } from './glidingOpsHours.mjs'
 
 function readJsonBody(req: Connect.IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -74,6 +74,25 @@ function apiPlugin(): Plugin {
             res.end(
               JSON.stringify({
                 error: err instanceof Error ? err.message : 'GlidingOps hours unavailable',
+              }),
+            )
+          }
+          return
+        }
+
+        if (url.startsWith('/api/glidingops-stats')) {
+          try {
+            const force = url.includes('force=1') || url.includes('force=true')
+            const result = await fetchOpsStats({ force })
+            res.setHeader('Content-Type', 'application/json')
+            res.setHeader('Cache-Control', 'no-store')
+            res.end(JSON.stringify(result))
+          } catch (err) {
+            res.statusCode = 502
+            res.setHeader('Content-Type', 'application/json')
+            res.end(
+              JSON.stringify({
+                error: err instanceof Error ? err.message : 'GlidingOps stats unavailable',
               }),
             )
           }

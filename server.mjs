@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { join, extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { fetchNearbyMetarObservations } from './weatherApi.mjs'
-import { fetchHoursSinceAnnual } from './glidingOpsHours.mjs'
+import { fetchHoursSinceAnnual, fetchOpsStats } from './glidingOpsHours.mjs'
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -87,6 +87,17 @@ createServer(async (req, res) => {
       const result = await fetchHoursSinceAnnual({
         fleet: Array.isArray(body.fleet) ? body.fleet : undefined,
       })
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      })
+      res.end(JSON.stringify(result))
+      return
+    }
+
+    if (pathname === '/api/glidingops-stats') {
+      const force = (req.url || '').includes('force=1') || (req.url || '').includes('force=true')
+      const result = await fetchOpsStats({ force })
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store',

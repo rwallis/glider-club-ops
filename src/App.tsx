@@ -10,6 +10,7 @@ import { HomePage } from './pages/HomePage'
 import { MembersAircraftPage } from './pages/MembersAircraftPage'
 import { MembersFieldTasksPage } from './pages/MembersFieldTasksPage'
 import { MembersLoginPage } from './pages/MembersLoginPage'
+import { MembersOpsStatsPage } from './pages/MembersOpsStatsPage'
 import { MembersStatusPage } from './pages/MembersStatusPage'
 import { MembersSignupPage } from './pages/MembersSignupPage'
 
@@ -36,6 +37,7 @@ export default function App() {
                   <Route path="signup" element={<MembersSignupPage />} />
                   <Route path="tasks" element={<MembersFieldTasksPage />} />
                   <Route path="aircraft" element={<MembersAircraftPage />} />
+                  <Route path="stats" element={<MembersOpsStatsPage />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

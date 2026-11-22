@@ -270,17 +270,36 @@ async function request(jar, url, { method = 'GET', body, headers = {} } = {}) {
   return res
 }
 
+function cleanName(s) {
+  return String(s || '')
+    .replace(/\s+/g, ' ')
+    .replace(/&amp;/gi, '&')
+    .trim()
+}
+
+function isGliderFlight(code, mins) {
+  if (!code || code === 'G00') return false
+  if (!/^G[A-Z0-9]{2,3}$/i.test(code)) return false
+  return mins > 0
+}
+
 function extractFlightRows(html) {
   const rows = []
   const text = html.replace(/\r\n/g, '\n')
   let m
   ROW_PAT.lastIndex = 0
   while ((m = ROW_PAT.exec(text))) {
-    const dateS = m[1]
     const glider = m[5].trim().toUpperCase()
-    const dur = m[11]
     if (!glider) continue
-    rows.push({ date: parseTableDate(dateS), code: glider, mins: parseDuration(dur) })
+    rows.push({
+      date: parseTableDate(m[1]),
+      code: glider,
+      mins: parseDuration(m[11]),
+      launchType: cleanName(m[3]),
+      towPilot: cleanName(m[6]),
+      pic: cleanName(m[7]),
+      p2: cleanName(m[8]),
+    })
   }
   if (rows.length) return rows
 
@@ -288,10 +307,10 @@ function extractFlightRows(html) {
   while ((m = HTML_ROW_HINT.exec(html))) {
     const dateS = m[1]
     const body = m[2]
-    const cells = [...body.matchAll(/<td[^>]*>(.*?)<\/td>/gi)].map((c) =>
-      c[1].replace(/<[^>]+>/g, '').trim(),
+    const cells = [...body.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((c) =>
+      cleanName(c[1].replace(/<[^>]+>/g, ' ')),
     )
-    let glider = cells[4]?.toUpperCase() || ''
+    let glider = (cells[4] || '').toUpperCase()
     if (!glider) {
       const codes = body.match(GLIDER_CODE_PAT) || []
       glider = codes[0]?.toUpperCase() || ''
@@ -302,9 +321,147 @@ function extractFlightRows(html) {
       date: parseTableDate(dateS),
       code: glider,
       mins: parseDuration(durs[durs.length - 1]),
+      launchType: cells[2] || '',
+      towPilot: cells[5] || '',
+      pic: cells[6] || '',
+      p2: cells[7] || '',
     })
   }
   return rows
+}
+
+/** Collapse "Wilson Delenor" / "Delenor Wilson" to one identity. */
+function nameKey(name) {
+  const cleaned = cleanName(name)
+  if (!cleaned) return ''
+  return cleaned
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(' ')
+}
+
+function bumpNamed(counts, displays, name, by = 1) {
+  const key = nameKey(name)
+  if (!key) return
+  counts.set(key, (counts.get(key) || 0) + by)
+  if (!displays.has(key)) displays.set(key, new Map())
+  const forms = displays.get(key)
+  const label = cleanName(name)
+  forms.set(label, (forms.get(label) || 0) + by)
+}
+
+function preferredDisplay(forms) {
+  let best = ''
+  let bestN = -1
+  for (const [label, n] of forms) {
+    if (n > bestN || (n === bestN && label.localeCompare(best) < 0)) {
+      best = label
+      bestN = n
+    }
+  }
+  return best
+}
+
+function rankedNamed(counts, displays) {
+  return [...counts.entries()]
+    .map(([key, count]) => ({
+      name: preferredDisplay(displays.get(key) || new Map([[key, 1]])),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+}
+
+function buildOpsStats(rows, { from, to, asOf }) {
+  const currentYear = to.getFullYear()
+  const yearStart = currentYear - 4
+  const years = []
+  for (let y = yearStart; y <= currentYear; y++) years.push(y)
+
+  const flightCounts = new Map()
+  const flightDisplays = new Map()
+  const towCounts = new Map()
+  const towDisplays = new Map()
+  /** @type {Map<number, number>} */
+  const minsByYear = new Map(years.map((y) => [y, 0]))
+
+  for (const row of rows) {
+    const year = row.date.getFullYear()
+    if (year < yearStart || year > currentYear) continue
+
+    if (isGliderFlight(row.code, row.mins) && minsByYear.has(year)) {
+      minsByYear.set(year, minsByYear.get(year) + row.mins)
+    }
+
+    if (year !== currentYear) continue
+
+    if (isGliderFlight(row.code, row.mins)) {
+      bumpNamed(flightCounts, flightDisplays, row.pic)
+      if (row.p2 && nameKey(row.p2) !== nameKey(row.pic)) {
+        bumpNamed(flightCounts, flightDisplays, row.p2)
+      }
+    }
+
+    if (/tow/i.test(row.launchType) && row.towPilot) {
+      bumpNamed(towCounts, towDisplays, row.towPilot)
+    }
+  }
+
+  const hoursByYear = years.map((year) => ({
+    year,
+    hours: Math.round((minsByYear.get(year) / 60) * 10) / 10,
+  }))
+
+  return {
+    asOf,
+    from: isoDate(from),
+    to: isoDate(to),
+    source: `All Flights Report ${formatUsDate(from)}–${formatUsDate(to)}`,
+    flightRows: rows.length,
+    currentYear,
+    flightsByMember: rankedNamed(flightCounts, flightDisplays),
+    towsByPilot: rankedNamed(towCounts, towDisplays),
+    hoursByYear,
+  }
+}
+
+let statsCache = /** @type {{ at: number, payload: object } | null} */ (null)
+const STATS_CACHE_MS = 15 * 60 * 1000
+
+/**
+ * Club presentation stats from All Flights Report (5 calendar years).
+ * @param {{ force?: boolean }} [options]
+ */
+export async function fetchOpsStats(options = {}) {
+  if (!options.force && statsCache && Date.now() - statsCache.at < STATS_CACHE_MS) {
+    return { ...statsCache.payload, cached: true }
+  }
+
+  const user = (process.env.GLIDINGOPS_USER || '').trim()
+  const password = (process.env.GLIDINGOPS_PASSWORD || '').trim()
+  if (!user || !password) {
+    throw new Error(
+      'Missing GLIDINGOPS_USER / GLIDINGOPS_PASSWORD in server environment (.env)',
+    )
+  }
+
+  const base = (process.env.GLIDINGOPS_BASE_URL || DEFAULT_BASE).replace(/\/$/, '')
+  const end = new Date()
+  end.setHours(12, 0, 0, 0)
+  const start = new Date(end.getFullYear() - 4, 0, 1, 12, 0, 0, 0)
+
+  const jar = new CookieJar()
+  await login(jar, base, user, password)
+  const html = await fetchReportHtml(jar, base, start, end)
+  const rows = extractFlightRows(html)
+  if (!rows.length) {
+    throw new Error('No flight rows parsed from All Flights Report')
+  }
+
+  const payload = buildOpsStats(rows, { from: start, to: end, asOf: isoDate(end) })
+  statsCache = { at: Date.now(), payload }
+  return { ...payload, cached: false }
 }
 
 async function login(jar, base, user, password) {

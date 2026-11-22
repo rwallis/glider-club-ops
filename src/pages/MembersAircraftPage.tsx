@@ -348,6 +348,14 @@ function WallAdminMenu({
             Reset seed
           </button>
           <Link
+            to="/members/stats"
+            role="menuitem"
+            className="block w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-white/5"
+            onClick={() => setOpen(false)}
+          >
+            Ops stats
+          </Link>
+          <Link
             to="/members"
             role="menuitem"
             className="block w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-white/5"

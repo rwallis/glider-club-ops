@@ -14,9 +14,10 @@ export function MembersLayout() {
   const { logout } = useAuth()
   const { snapshot } = useClubStatus()
   const location = useLocation()
-  const isAircraftWall = location.pathname === '/members/aircraft'
+  const isPresentationWall =
+    location.pathname === '/members/aircraft' || location.pathname === '/members/stats'
 
-  if (isAircraftWall) {
+  if (isPresentationWall) {
     return (
       <div className="members-dark min-h-dvh bg-[#0b1a2c]">
         <Outlet />
@@ -53,6 +54,9 @@ export function MembersLayout() {
               </NavLink>
               <NavLink to="/members/aircraft" className={navClass}>
                 Aircraft
+              </NavLink>
+              <NavLink to="/members/stats" className={navClass}>
+                Ops stats
               </NavLink>
             </nav>
 
