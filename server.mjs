@@ -4,6 +4,27 @@ import { existsSync } from 'node:fs'
 import { join, extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { fetchNearbyMetarObservations } from './weatherApi.mjs'
+import { fetchHoursSinceAnnual } from './glidingOpsHours.mjs'
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = []
+    req.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)))
+    req.on('end', () => {
+      const raw = Buffer.concat(chunks).toString('utf8').trim()
+      if (!raw) {
+        resolve({})
+        return
+      }
+      try {
+        resolve(JSON.parse(raw))
+      } catch (err) {
+        reject(err)
+      }
+    })
+    req.on('error', reject)
+  })
+}
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const DIST = join(__dirname, 'dist')
@@ -53,6 +74,24 @@ createServer(async (req, res) => {
         'Cache-Control': 'public, max-age=300',
       })
       res.end(JSON.stringify(observations))
+      return
+    }
+
+    if (pathname === '/api/glidingops-hours') {
+      if (req.method !== 'POST' && req.method !== 'GET') {
+        res.writeHead(405, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Use POST or GET' }))
+        return
+      }
+      const body = req.method === 'POST' ? await readJsonBody(req) : {}
+      const result = await fetchHoursSinceAnnual({
+        fleet: Array.isArray(body.fleet) ? body.fleet : undefined,
+      })
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      })
+      res.end(JSON.stringify(result))
       return
     }
 

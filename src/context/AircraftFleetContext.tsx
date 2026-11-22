@@ -30,6 +30,7 @@ type AircraftPatch = Partial<
 interface AircraftFleetContextValue {
   fleet: AircraftRecord[]
   updateAircraft: (id: string, patch: AircraftPatch) => void
+  applyHoursByTail: (hoursByTail: Record<string, number | null>) => void
   resetToSeed: () => void
 }
 
@@ -83,13 +84,31 @@ export function AircraftFleetProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  const applyHoursByTail = useCallback((hoursByTail: Record<string, number | null>) => {
+    const today = todayIso()
+    setFleet((prev) =>
+      prev.map((aircraft) => {
+        if (!Object.prototype.hasOwnProperty.call(hoursByTail, aircraft.tail)) {
+          return aircraft
+        }
+        const hours = hoursByTail[aircraft.tail]
+        return {
+          ...aircraft,
+          hoursSinceAnnual: hours,
+          hoursLastEntered: hours == null ? null : today,
+          lastUpdated: today,
+        }
+      })
+    )
+  }, [])
+
   const resetToSeed = useCallback(() => {
     setFleet(SEED_AIRCRAFT_FLEET.map((a) => ({ ...a })))
   }, [])
 
   const value = useMemo(
-    () => ({ fleet, updateAircraft, resetToSeed }),
-    [fleet, updateAircraft, resetToSeed]
+    () => ({ fleet, updateAircraft, applyHoursByTail, resetToSeed }),
+    [fleet, updateAircraft, applyHoursByTail, resetToSeed]
   )
 
   return (

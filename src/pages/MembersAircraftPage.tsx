@@ -264,11 +264,15 @@ function AircraftCard({
 
 function WallAdminMenu({
   adminMode,
+  hoursBusy,
   onToggleAdmin,
+  onUpdateHours,
   onReset,
 }: {
   adminMode: boolean
+  hoursBusy: boolean
   onToggleAdmin: () => void
+  onUpdateHours: () => void
   onReset: () => void
 }) {
   const { logout } = useAuth()
@@ -305,7 +309,7 @@ function WallAdminMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-20 mt-1 min-w-[11rem] overflow-hidden rounded-lg border border-white/10 bg-[#12263c] py-1 shadow-xl shadow-black/40"
+          className="absolute right-0 z-20 mt-1 min-w-[13.5rem] overflow-hidden rounded-lg border border-white/10 bg-[#12263c] py-1 shadow-xl shadow-black/40"
         >
           <button
             type="button"
@@ -318,6 +322,20 @@ function WallAdminMenu({
           >
             {adminMode ? 'Exit edit mode' : 'Edit board'}
           </button>
+          {adminMode ? (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={hoursBusy}
+              className="block w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-white/5 disabled:cursor-wait disabled:opacity-50"
+              onClick={() => {
+                onUpdateHours()
+                setOpen(false)
+              }}
+            >
+              {hoursBusy ? 'Updating hours…' : 'Update hours since annual'}
+            </button>
+          ) : null}
           <button
             type="button"
             role="menuitem"
@@ -355,9 +373,11 @@ function WallAdminMenu({
 }
 
 export function MembersAircraftPage() {
-  const { fleet, resetToSeed } = useAircraftFleet()
+  const { fleet, applyHoursByTail, resetToSeed } = useAircraftFleet()
   const { snapshot } = useClubStatus()
   const [adminMode, setAdminMode] = useState(false)
+  const [hoursBusy, setHoursBusy] = useState(false)
+  const [hoursMessage, setHoursMessage] = useState<string | null>(null)
 
   const sorted = useMemo(() => sortFleet(fleet), [fleet])
 
@@ -373,6 +393,45 @@ export function MembersAircraftPage() {
   const downCount = fleet.filter((a) => a.status === 'Down').length
   const updated = latestFleetStamp(fleet)
 
+  async function updateHoursFromGlidingOps() {
+    if (hoursBusy) return
+    setHoursBusy(true)
+    setHoursMessage(null)
+    try {
+      const res = await fetch('/api/glidingops-hours', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fleet: fleet.map((a) => ({
+            tail: a.tail,
+            category: a.category,
+            dueMmYy: a.dueMmYy,
+            lastAnnual: a.lastAnnual,
+          })),
+        }),
+      })
+      const data = (await res.json()) as {
+        error?: string
+        hoursByTail?: Record<string, number | null>
+        flightRows?: number
+        from?: string
+        to?: string
+      }
+      if (!res.ok || !data.hoursByTail) {
+        throw new Error(data.error || 'Hours update failed')
+      }
+      applyHoursByTail(data.hoursByTail)
+      const filled = Object.values(data.hoursByTail).filter((v) => v != null).length
+      setHoursMessage(
+        `Updated ${filled} glider${filled === 1 ? '' : 's'} from GlidingOps (${data.from} → ${data.to}, ${data.flightRows ?? 0} flights)`,
+      )
+    } catch (err) {
+      setHoursMessage(err instanceof Error ? err.message : 'Hours update failed')
+    } finally {
+      setHoursBusy(false)
+    }
+  }
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-[100rem] flex-col px-3 py-3 sm:px-5 sm:py-4 lg:px-6 lg:py-5">
       <header className="mb-3 flex shrink-0 items-center justify-between gap-3 sm:mb-4">
@@ -383,6 +442,9 @@ export function MembersAircraftPage() {
           <h1 className="font-display text-2xl leading-tight text-white sm:text-3xl lg:text-4xl">
             Aircraft status
           </h1>
+          {hoursMessage ? (
+            <p className="mt-1 max-w-xl text-[11px] text-slate-400">{hoursMessage}</p>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -398,13 +460,25 @@ export function MembersAircraftPage() {
             <p className="hidden text-[11px] text-slate-500 md:block">Updated {updated}</p>
           ) : null}
           {adminMode ? (
-            <span className="rounded-md bg-sky-500/15 px-2 py-1 text-[11px] font-medium text-sky-200 ring-1 ring-sky-400/30">
-              Editing
-            </span>
+            <>
+              <button
+                type="button"
+                disabled={hoursBusy}
+                onClick={() => void updateHoursFromGlidingOps()}
+                className="rounded-md bg-sky-500/20 px-2.5 py-1.5 text-[11px] font-medium text-sky-100 ring-1 ring-sky-400/35 hover:bg-sky-500/30 disabled:cursor-wait disabled:opacity-60 sm:text-xs"
+              >
+                {hoursBusy ? 'Updating hours…' : 'Update hours'}
+              </button>
+              <span className="rounded-md bg-sky-500/15 px-2 py-1 text-[11px] font-medium text-sky-200 ring-1 ring-sky-400/30">
+                Editing
+              </span>
+            </>
           ) : null}
           <WallAdminMenu
             adminMode={adminMode}
+            hoursBusy={hoursBusy}
             onToggleAdmin={() => setAdminMode((v) => !v)}
+            onUpdateHours={() => void updateHoursFromGlidingOps()}
             onReset={resetToSeed}
           />
         </div>

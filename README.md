@@ -26,6 +26,27 @@ npm run dev
 - Public site: http://localhost:5173
 - Members login: http://localhost:5173/members/login
 
+## Sync glider hours from GlidingOps
+
+Pull All Flights Report hours (since last annual) into `docs/hours-since-annual.json`:
+
+1. Put your GlidingOps login in `.env` (never commit this file):
+
+```env
+GLIDINGOPS_USER=your@email.com
+GLIDINGOPS_PASSWORD=your-password
+```
+
+2. Run:
+
+```bash
+python scripts/fetch-glidingops-hours.py
+# optional fixed window / debug HTML:
+python scripts/fetch-glidingops-hours.py --from 11/22/2025 --to 11/22/2026 --save-html
+```
+
+Requires `pip install requests`. Cached HTML (if `--save-html`) goes under `docs/glidingops-cache/` (gitignored).
+
 ## Deploy
 
 Build static assets with `npm run build`. For client-side routing, configure your host to serve `index.html` for all routes (Vercel/Netlify handle this automatically).
