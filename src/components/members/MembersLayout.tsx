@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { images } from '../../data/images'
 import { useAuth } from '../../context/AuthContext'
 import { useClubStatus } from '../../context/ClubStatusContext'
@@ -13,6 +13,16 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 export function MembersLayout() {
   const { logout } = useAuth()
   const { snapshot } = useClubStatus()
+  const location = useLocation()
+  const isAircraftWall = location.pathname === '/members/aircraft'
+
+  if (isAircraftWall) {
+    return (
+      <div className="members-dark min-h-dvh bg-[#0b1a2c]">
+        <Outlet />
+      </div>
+    )
+  }
 
   return (
     <div className="members-dark min-h-screen">
@@ -20,7 +30,11 @@ export function MembersLayout() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Link to="/" className="flex items-center gap-3 text-sky-200 hover:text-white">
-              <img src={images.logo} alt="" className="h-9 w-9 rounded-full object-cover ring-2 ring-sky-700" />
+              <img
+                src={images.logo}
+                alt=""
+                className="h-9 w-9 rounded-full object-cover ring-2 ring-sky-700"
+              />
               <div>
                 <p className="text-sm font-semibold text-white">{snapshot.clubName}</p>
                 <p className="text-xs text-sky-400/80">Members</p>
