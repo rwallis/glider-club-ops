@@ -37,6 +37,9 @@ export function MembersLayout() {
               <NavLink to="/members/tasks" className={navClass}>
                 Work items
               </NavLink>
+              <NavLink to="/members/aircraft" className={navClass}>
+                Aircraft
+              </NavLink>
             </nav>
 
             <button

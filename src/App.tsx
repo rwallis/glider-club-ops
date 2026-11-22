@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AircraftFleetProvider } from './context/AircraftFleetContext'
 import { AuthProvider } from './context/AuthContext'
 import { ClubStatusProvider } from './context/ClubStatusContext'
 import { FieldTasksProvider } from './context/FieldTasksContext'
@@ -6,6 +7,7 @@ import { SignupProvider } from './context/SignupContext'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { MembersLayout } from './components/members/MembersLayout'
 import { HomePage } from './pages/HomePage'
+import { MembersAircraftPage } from './pages/MembersAircraftPage'
 import { MembersFieldTasksPage } from './pages/MembersFieldTasksPage'
 import { MembersLoginPage } from './pages/MembersLoginPage'
 import { MembersStatusPage } from './pages/MembersStatusPage'
@@ -16,27 +18,30 @@ export default function App() {
     <AuthProvider>
       <ClubStatusProvider>
         <FieldTasksProvider>
-          <SignupProvider>
-            <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/members/login" element={<MembersLoginPage />} />
-              <Route
-                path="/members"
-                element={
-                  <ProtectedRoute>
-                    <MembersLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<MembersStatusPage />} />
-                <Route path="signup" element={<MembersSignupPage />} />
-                <Route path="tasks" element={<MembersFieldTasksPage />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </BrowserRouter>
-        </SignupProvider>
+          <AircraftFleetProvider>
+            <SignupProvider>
+              <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/members/login" element={<MembersLoginPage />} />
+                <Route
+                  path="/members"
+                  element={
+                    <ProtectedRoute>
+                      <MembersLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<MembersStatusPage />} />
+                  <Route path="signup" element={<MembersSignupPage />} />
+                  <Route path="tasks" element={<MembersFieldTasksPage />} />
+                  <Route path="aircraft" element={<MembersAircraftPage />} />
+                </Route>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </BrowserRouter>
+            </SignupProvider>
+          </AircraftFleetProvider>
         </FieldTasksProvider>
       </ClubStatusProvider>
     </AuthProvider>
